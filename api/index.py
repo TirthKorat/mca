@@ -1,6 +1,5 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request
 import pandas as pd
-from transformers import BertTokenizer, BertForMaskedLM
 from collections import defaultdict
 
 app = Flask(__name__)
@@ -13,16 +12,13 @@ df['ingredients'] = df['ingredients'].fillna('')
 
 df['searchable_text'] = df['tags'] + ' ' + df['ingredients']
 
+# Simple keyword indexing
 keyword_index = defaultdict(list)
 
 for idx, row in df.iterrows():
-    text = row['searchable_text']
+    text = row['searchable_text'].lower()  # Convert to lowercase for case-insensitive matching
     for keyword in text.split():
         keyword_index[keyword].append(row.to_dict())
-
-model_name = 'bert-base-uncased'
-tokenizer = BertTokenizer.from_pretrained(model_name)
-model = BertForMaskedLM.from_pretrained(model_name)
 
 @app.route('/')
 def index():
@@ -30,7 +26,7 @@ def index():
 
 @app.route('/search_recipe', methods=['POST'])
 def generate_recipe():
-    search_input = request.form['search-input'].strip()  # Remove leading/trailing spaces
+    search_input = request.form['search-input'].strip().lower()  # Remove leading/trailing spaces and convert to lowercase
     keywords = search_input.split()
 
     matching_recipes = []

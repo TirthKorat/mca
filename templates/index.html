@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Tarife - Recipe Generator</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css"
+    integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA=="
+    crossorigin="anonymous" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='round_logo.png') }}">
+</head>
+
+<body>
+  <div class="container">
+    <div class="meal-wrapper">
+      <div class="meal-search">
+
+        <form id="generate-form" action="/search_recipe" method="POST">
+          <div class="meal-search-box">
+            <input type="text" class="search-control" placeholder="Enter an ingredient" id="search-input"
+              name="search-input">
+            <button type="submit" class="search-btn btn" id="search-btn">
+              <i class="fas fa-search"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="meal-result">
+        <h2 class="result-title">Your Search Results</h2>
+        <div id="recipe-result" class="meal-card-container">
+          {% if recipes %}
+          {% for recipe in recipes %}
+          <div class="recipe-card">
+            <div class="meal-title">
+              <p class="meal-name sentence-case">{{ recipe.get('name', 'No Name') }}</p>
+            </div>
+            <div class="meal-button">
+              <button class="btn full-recipe-btn" data-recipe='{{ recipe|tojson }}'>Full Recipe</button>
+            </div>
+          </div>
+          {% endfor %}
+          {% else %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="popup-container popup-image" id="fullRecipePopup">
+    <button class="btn btn-close" onclick="closePopup()">X</button>
+    <div id="fullRecipeContent"></div>
+  </div>
+
+  <script>
+    function openPopup(recipeData) {
+      const popup = document.getElementById('fullRecipePopup');
+      const content = document.getElementById('fullRecipeContent');
+      const recipe = JSON.parse(recipeData);
+
+      // Function to convert ingredients to a dynamic list with hyphens
+      function convertIngredientsToDynamicList(ingredients) {
+        return ingredients
+          .replace(/^\s+|\s+$/g, '') // Remove leading/trailing whitespaces
+          .replace(/['\[\]]/g, '')   // Remove single quotes and square brackets
+          .split(', ')
+          .map(ingredient => `<li>- ${ingredient}</li>`)
+          .join('');
+      }
+
+      // Function to convert steps to a dynamic list with step numbers
+      function convertStepsToDynamicList(steps) {
+        return steps
+          .replace(/^\s+|\s+$/g, '')
+          .replace(/['\[\]]/g, '')
+          .split(', ')
+          .map((step, index) => `<li> <b> ${index + 1}.</b> ${step} </li>`)
+          .join('');
+      }
+
+      const ingredientsList = convertIngredientsToDynamicList(recipe.ingredients);
+      const stepsList = convertStepsToDynamicList(recipe.steps);
+      // const timelist = convertStepsToDynamicList(recipe.minutes);
+
+
+      const htmlContent = `
+                    <div class="popup-design">
+                      <div class="meal-title">
+                        <h2 class="meal-name sentence-case"  style="text-align: center;">${recipe.name}</h2>
+                      </div>
+
+                      <div class="meal-tag">
+                        <h3>Minutes:</h3>
+                        <div class="result-ingredients">  
+                          <ul>${recipe.minutes} Minutes</ul>
+                        </div>
+                      </div>
+                    
+                      <div class="meal-tag">
+                        <h3>Ingredients:</h3>
+                        <div class="result-ingredients">  
+                          <ul>${ingredientsList}</ul>
+                        </div>
+                      </div>
+              
+                      <div class="meal-tag">
+                        <h3>Steps:</h3>
+                        <div class="result-ingredients"> 
+                           <ul>${stepsList}</ul>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+
+      content.innerHTML = htmlContent;
+      popup.style.display = 'block';
+    }
+
+    function closePopup() {
+      const popup = document.getElementById('fullRecipePopup');
+      popup.style.display = 'none';
+    }
+
+    const fullRecipeButtons = document.querySelectorAll('.full-recipe-btn');
+    fullRecipeButtons.forEach(button => {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        const recipeData = this.getAttribute('data-recipe');
+        openPopup(recipeData);
+      });
+    });
+
+    $(document).ready(function () {
+      function loadRecipes(page) {
+        var searchInput = $('#search-input').val();
+        
+        
+        $.ajax({
+          url: '/generate_recipe',
+          type: 'POST',
+          data: { 'search-input': searchInput, 'page': page },
+          success: function (response) {
+            $('#recipe-result').html(response);
+          },
+          error: function (error) {
+            console.error('Error:', error);
+          }
+        });
+      }
+
+      $('#generate-form').submit(function (event) {
+        event.preventDefault();
+        loadRecipes(1);
+      });
+
+      $(document).on('click', '.pagination a', function (event) {
+        event.preventDefault();
+        var page = $(this).attr('href').split('page=')[1];
+        loadRecipes(page);
+      });
+    });
+
+
+  </script>
+
+<script>
+    var initialKeywordsCount = 3; // Set the initial keyword count
+
+    function validateSearchInput(inputElement) {
+        var userInput = inputElement.value;
+        var keywords = userInput.split(' ').filter(Boolean); // Split input into words and remove empty elements
+
+        var validationMessage = document.getElementById('validationMessage');
+        var searchButton = document.getElementById('searchButton');
+
+        // Check if there are at least 3 keywords
+        if (keywords.length < initialKeywordsCount) {
+            validationMessage.textContent = 'Please enter at least 3 ingredient keywords.';
+            searchButton.disabled = true;
+        } else {
+            validationMessage.textContent = '';
+            searchButton.disabled = false;
+        }
+
+        // You can add additional validation logic here if needed
+       
+  }
+</script>
+
+</body>
+
+</html>
